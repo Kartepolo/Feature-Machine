@@ -1,0 +1,117 @@
+import numpy as np
+from sklearn.gaussian_process import GaussianProcess as GP
+from scipy.optimize import minimize
+from BOHelper import AcquisitionFuncs
+
+#Helper Functions
+def find_max(ac_func, gp, fmax, iter, bound):
+    """
+    Function to find the maximum of acquisition functions using 'L-BFGS-B' methods
+
+    Parameters
+    ----------
+
+    :param ac_func: Acquisition Function
+    :param gp: Gaussian Process
+    :param fmax: Current maximum known value of the function
+    :param iter: maximum number of iterations
+    :param bound: Variable bounds
+    :return: x_max, the arg max of the acquisition function
+    """
+
+    x_max = bound[:,0]
+    c_max = 0
+
+    for i in range(iter):
+        x_trial = np.asarray([np.random.uniform(x[0], x[1], size = 1) for x in bound]).T
+        res = minimize(lambda x: -ac_func(x,gp = gp, fmax = fmax), x_trial, bounds = bound, method = 'L-BFGS-B')
+        if -res.fun > c_max:
+            x_max = res.x
+            c_max = -res.fun
+    return x_max
+
+
+def el_duplicate(a):
+    """
+
+    :param a: an array to trim repeated rows
+    :return:
+    """
+    order = np.lexsort(a.T)
+    reorder = np.argsort(order)
+
+    a = a[order]
+    diff = np.diff(a, axis = 0)
+    u = np.ones(len(a), 'bool')
+    u[1:] = (diff != 0).any(axis = 1)
+
+    return u[reorder]
+
+
+class BayesianOptimization(object):
+    """
+    Bayesian global optimization with Gaussian Process.
+    """
+
+    def __init__(self, func, pbounds):
+        """
+
+        :param func:
+        :param pbounds:
+        :return:
+        """
+
+        self.pbounds = pbounds
+        self.keys = list(pbounds.keys())
+        self.dim = len(pbounds)
+
+        #Initializing bounding parameters
+        self.bounds = []
+        for k in self.keys:
+            self.bounds.append(self.pbounds[k])
+        self.bounds = np.asarray(self.bounds)
+
+        #Initializing functions
+        self.func = func
+
+        #Initialization lists
+        self.init_points = []
+        self.x_init = []
+        self.y_init = []
+
+    def init(self, init_points):
+        """
+        Initializing the Optimizer
+        :param init_points:
+        :return:
+        """
+
+        l = [np.random.uniform(x[0], x[1], size = init_points) for x in self.bounds]
+        self.init_points += list(map(list, zip(*l)))
+        y_init = []
+
+        for x in self.init_points:
+            y_init.append(self.func(**dict(zip(self.keys,x))))
+
+        self.init_points += self.x_init
+        y_init += self.y_init
+        self.X = np.asarray(self.init_points)
+        self.Y = np.asarray(y_init)
+
+    def explore(self, points_dict):
+        """
+
+        :param points_dict:
+        :return:
+        """
+
+    def initialize(self, points):
+        """
+
+        :param points:
+        :return:
+        """
+        for p in points:
+            self.y_init.append(p)
+
+
