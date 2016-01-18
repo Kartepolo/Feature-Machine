@@ -11,7 +11,7 @@ def sigmoid(x):
 
 def test():
 
-    with open("train-images-idx3-ubyte", "r") as f:
+    with open("/MyNnet/train-images-idx3-ubyte", "r") as f:
         magic = np.fromfile(f, dtype=np.dtype('>i4'), count=1)
         num_images = np.fromfile(f, dtype=np.dtype('>i4'), count=1)
         num_rows = np.fromfile(f, dtype=np.dtype('>i4'), count=1)
