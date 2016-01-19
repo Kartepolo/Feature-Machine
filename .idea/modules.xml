@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/Feature Machine.iml" filepath="$PROJECT_DIR$/.idea/Feature Machine.iml" />
+      <module fileurl="file://$USER_HOME$/Downloads/ufldl_tutorial-master/.idea/ufldl_tutorial-master.iml" filepath="$USER_HOME$/Downloads/ufldl_tutorial-master/.idea/ufldl_tutorial-master.iml" />
     </modules>
   </component>
 </project>
