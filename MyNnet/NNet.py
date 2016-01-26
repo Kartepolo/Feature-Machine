@@ -1,4 +1,4 @@
-from Layer import NLayer
+import Layer as NLayer
 import numpy as np
 from scipy.optimize import minimize
 from sklearn.preprocessing import normalize
@@ -13,17 +13,27 @@ def sigmoid(x):
 def kl_divergence(x, y):
     return x * np.log(x / y) + (1 - x) * np.log((1 - x) / (1 - y))
 
+def softmax(x):
+    x = x - np.max(x)
+    prob = np.exp(x) / np.sum(np.exp(x), axis = 1)
+    return prob
+
 class NNet:
-    def __init__(self, Layers, func, lam, sparsity_param, beta):
+    def __init__(self, Layers, lam, beta):
         self.lam = lam
-        self.sparsity_param = sparsity_param
-        self.Layers = []
+        self.Layers = [] # Layers is a list of dictionary
         self.theta = None
+        self.beta = beta
         prev = None
         for l in xrange(len(Layers)):
-            self.Layers.append(NLayer(size = Layers[l], ac_func = func, prevlayer = prev, lam = lam, sparsity_param = sparsity_param))
+            name = Layers[l]['type']
+            params = Layers[l]['params']
+            params['prevlayer'] = prev
+            method = getattr(NLayer,name)
+            self.Layers.append(method(**params))
             prev = self.Layers[l]
-        self.beta = beta
+        # a list to store costs
+        self.J = []
 
     def init(self):
         result = []
@@ -31,41 +41,32 @@ class NNet:
             result.append(l.rand_init())
         return np.hstack(result)
 
-    def SSE(self, input, output, size):
-        return np.sum((output - input) ** 2) / (2 * size)
-
-    def L2_Penalize(self):
-        return self.lam * self.Layers[len(self.Layers) - 1].cul_weight() / (len(self.Layers) - 1)
-
-
-    def forward_back(self, theta, data, output, debug = True):
+    def forward_back(self, theta, debug = True):
         self.set_theta(theta)
-        subdata, suboutput = shuffle(data, output)
-        self.Layers[0].activation = subdata[:, 0:10000]
-        self.output = suboutput[:, 0:10000]
         LastLayer = self.Layers[len(self.Layers) - 1]
         result = LastLayer.activate()
-        # Sparsity
-        rho_est = np.sum(LastLayer.prev.activation, axis = 1) / LastLayer.sample_size
-        rho = np.tile(self.sparsity_param, LastLayer.prev.size)
+        #Aggegating kl_divergence of sparsity_parameters
+        s_cost = 0
+        for l in self.Layers:
+            if l.sparsity_param > 0:
+                s_cost += self.beta* np.sum(kl_divergence(l.rho, l.rho_est))
         # Cost Function
-        cost = np.sum((result - self.output) ** 2) / (2 * LastLayer.sample_size) + \
-               self.lam * LastLayer.cul_weight() / (len(self.Layers) - 1) + \
-               self.beta * np.sum(kl_divergence(rho, rho_est))
-        sparsity_delta = np.tile(- rho / rho_est + (1 - rho) / (1 - rho_est), (LastLayer.sample_size, 1)).transpose()
+        cost = np.sum((result - self.output) ** 2) / (2 * LastLayer.sample_size) \
+               + self.lam * LastLayer.culmulative_weights / (len(self.Layers) - 1) +s_cost
         if debug:
             return cost
         grad = []
-        delta = -(self.output - LastLayer.activation) * LastLayer.deriative
+        delta = -(self.output - LastLayer.activation) * LastLayer.derivative
         # Back_Propagation
-        sparse = True
         for l in xrange(len(self.Layers) - 1, 0, -1):
-            grad.insert(0, self.Layers[l].compute_gradient(delta))
-            if sparse:
-                delta = (self.Layers[l].weights.transpose().dot(delta) + self.beta * sparsity_delta) * self.Layers[l - 1].deriative
-                sparse = False
-            else:
-                delta = self.Layers[l].weights.transpose().dot(delta) * self.Layers[l - 1].deriative
+            if self.Layers[l].sparsity_param > 0:
+                sparsity_delta = np.tile(- self.Layers[l].rho / self.Layers[l].rho_est
+                                         + (1 - self.Layers[l].rho) / (1 - self.Layers[l].rho_est),
+                                         (self.Layers[l].sample_size, 1)).transpose()
+                delta = delta + self.beta * sparsity_delta * self.Layers[l].derivative
+            lgrad, delta = self.Layers[l].compute_gradient(delta)
+            grad.insert(0, lgrad)
+        self.J.append(cost)
         return cost, np.hstack(grad)
 
     def set_theta(self, theta):
@@ -81,12 +82,14 @@ class NNet:
     def train(self, data, output, debug = True):
         #data = normalize(data, axis=0, norm='l1')
         #output = normalize(output, axis=0, norm='l1')
+        self.Layers[0].activation = data
+        self.output = output
         theta = self.init()
         if debug:
             self.gradient_check(data, theta)
         else:
             options = {'maxiter': 500, 'disp': True}
-            J = lambda x: self.forward_back(theta = x, debug = debug, data = data, output = output)
+            J = lambda x: self.forward_back(theta = x, debug = debug)
             result = minimize(J, theta, method='L-BFGS-B', jac=True, options=options)
             opt_theta = result.x
             print opt_theta
@@ -106,6 +109,50 @@ class NNet:
         diff = np.linalg.norm(grad1 - grad0) / np.linalg.norm(grad1 + grad0)
         print diff
 
+    def naive_SGD(self, data, output, l_rate,decay = 1, norm_method = 'max', batches = 10, Uafterbatch = True):
+        acc_cost = {'cost':[], 'variance':[]}
+        if norm_method == 'max':
+            data = (data.T / (data.max(axis=1) + np.spacing(0))).T
+        else:
+            data = normalize(data, axis=0, norm='l1')
+        theta = self.init()
+        err = float('Inf')
+        counter = 0
+        batch_size = (int)(1.0 * data.shape[1] / batches)
+        batch_num = 0
+        while (err > 1e-1 and batch_num < 50):
+            for i in xrange(batches):
+                if i == batches - 1 : upper = data.shape[1]
+                else: upper = (i+1) * batch_size
+                self.Layers[0].activation = data[:,i * batch_size : upper]
+                self.output = output[i * batch_size : upper]
+                cost, grad = self.forward_back(theta, debug = False)
+                theta = theta - l_rate * grad
+                counter = counter + 1
+                if not Uafterbatch:
+                    l_rate = l_rate * decay
+            if Uafterbatch:
+                l_rate = l_rate * decay
+            mean = float(sum(self.J))/ (batches + 1)
+            max_val = max(self.J)
+            min_val = min(self.J)
+            self.J = []
+            batch_num += 1
+            acc_cost['cost'].append(mean)
+            acc_cost['variance'].append(max_val - min_val)
+            #print "Batch", batch_num, "Complete, using learning rate: ", l_rate
+            #print "Mean: ",mean, "max_val: ", max_val, "min_val: ", min_val
+            delta = []
+            if len(acc_cost) > 1:
+                for i in xrange(len(acc_cost['cost'])-1):
+                    delta.append(acc_cost['cost'][i] - acc_cost['cost'][i + 1])
+            #print "Delta" , len(delta) == 0 or delta[len(delta)-1]
+            if (len(delta) > 0):
+                if (delta[len(delta) -1] < 1e-3):
+                    break
+        return acc_cost
+
+
 class Sparse_AutoEncoder:
 
 
@@ -116,25 +163,6 @@ class Sparse_AutoEncoder:
         self.ae.train(data, data, debug = False)
 
 
-
-def test():
-    with open("train-images-idx3-ubyte", "r") as f:
-        magic = np.fromfile(f, dtype=np.dtype('>i4'), count=1)
-        num_images = np.fromfile(f, dtype=np.dtype('>i4'), count=1)
-        num_rows = np.fromfile(f, dtype=np.dtype('>i4'), count=1)
-        num_cols = np.fromfile(f, dtype=np.dtype('>i4'), count=1)
-        images = np.fromfile(f, dtype=np.ubyte)
-        images = images.reshape((num_rows * num_cols, num_images))
-        images = images.astype(np.float64) / 255
-        f.close()
-    input_size = 64
-    hidden_size = 36
-    data = np.random.randn(input_size, 10)
-    hidden_size = 196
-    ae = NNet(Layers = [28 * 28, 196, 28 * 28], func = sigmoid, lam = 3e-3, beta = 3, sparsity_param= 0.1)
-    ae.train(data = images, output = images, debug = False)
-
-test()
 
 
 

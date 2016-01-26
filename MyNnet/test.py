@@ -1,16 +1,7 @@
 import numpy as np
-from Sparse_AutoEncoder import SparseAutoEncoder
-
-
-def sigmoid(x):
-    def func(x):
-        return 1.0/(1 + np.exp(-x))
-    return func(x), func(x) * (1 - func(x))
-
-
+import NNet
 
 def test():
-
     with open("train-images-idx3-ubyte", "r") as f:
         magic = np.fromfile(f, dtype=np.dtype('>i4'), count=1)
         num_images = np.fromfile(f, dtype=np.dtype('>i4'), count=1)
@@ -23,7 +14,13 @@ def test():
     input_size = 64
     hidden_size = 36
     data = np.random.randn(input_size, 10)
-    SA = SparseAutoEncoder(ac_func = sigmoid, lam = 3e-3, beta = 3, sparsity_param= 0.1)
-    r = SA.train(images[:, 0:10000], hidden_size = 196, debug = True)
+    hidden_size = 96
+    L = []
+    L.append({"type":'NLayer',"params":{"size": 28 * 28, "ac_func":'sigmoid', "lam": 3e-3,"sparsity_param":0} })
+    L.append({"type":'NLayer',"params":{"size": 196, "ac_func":'sigmoid', "lam": 3e-3,"sparsity_param":0.1} })
+    L.append({"type":'NLayer',"params":{"size": 28 * 28, "ac_func":'sigmoid', "lam": 3e-3,"sparsity_param":0} })
+    ae = NNet(Layers = L,lam = 3e-3, beta = 3)
+    ae.train(data = images[:, 0:10000], output = images[:, 0:10000], debug = False)
+
 
 test()
