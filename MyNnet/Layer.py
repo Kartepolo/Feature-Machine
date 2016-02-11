@@ -13,6 +13,12 @@ class NNode:
         #Construct weights and bias arrays
         l = len(self.nodelist)
 
+def kl_divergence(x, y):
+    return x * np.log(x / y) + (1 - x) * np.log((1 - x) / (1 - y))
+
+def sign(x,y):
+    return np.int64((x - y) == 0)
+
 class NLayer(object):
     def __init__(self, size, ac_func, lam, sparsity_param, prevlayer = None):
         self.size = size
@@ -30,12 +36,12 @@ class NLayer(object):
         self.derivative = 0
         self.rho = np.tile(self.sparsity_param, self.size)
         self.rho_est = None
+        self.pred = None
 
     def sigmoid(self,x):
         def func(x):
             return 1.0/(1 + np.exp(-1.0 * x))
         return func(x), func(x) * (1 - func(x))
-
 
     def rand_init(self):
         r = np.sqrt(6) / np.sqrt(self.size + self.prev.size + 1)
@@ -53,6 +59,7 @@ class NLayer(object):
             self.activation, self.derivative = func(z)
             self.culmulative_weights = self.prev.culmulative_weights + np.sum(self.weights ** 2)
             self.rho_est = np.sum(self.activation, axis = 1) / self.sample_size
+            self.pred = self.activation
             self.sparsity_delta = np.tile(- self.rho / self.rho_est + (1 - self.rho) / (1 - self.rho_est), (self.sample_size, 1)).transpose()
         return self.activation
 
@@ -63,6 +70,10 @@ class NLayer(object):
         if self.prev is not None:
             next_delta = self.weights.transpose().dot(delta) * self.prev.derivative
         return (np.concatenate((w_gradient.reshape(self.size * self.prev.size), b_gradient)), next_delta)
+
+    def cost(self, output, s_cost):
+        return np.sum((self.activation - output) ** 2) / (2 * self.sample_size) \
+               + self.lam * self.culmulative_weights / (len(self.Layers) - 1) +s_cost
 
 
 class Encoder(NLayer):
@@ -111,19 +122,37 @@ class Dropout(NLayer):
             next_delta = self.weights.transpose().dot(delta) * self.prev.deriative
         return (w_gradient.reshape(self.size * self.prev.size), next_delta)
 
-class classifier(NLayer):
+class Classifier(NLayer):
 
     def __init__(self, **kwargs):
-        super(classifier, self).__init__(**kwargs)
-        self.bias = np.empty(self.size,dtype=np.float64)
+        super(Classifier, self).__init__(**kwargs)
+
+
+    def softmax(self,x):
+        x = x - np.max(x)
+        return 1.0 * np.exp(x) / np.sum(np.exp(x), axis = 0)
 
     def activate(self):
         prev_activation = self.prev.activate()
         self.sample_size = prev_activation.shape[1]
-        z = self.weights.dot(prev_activation)
+        z = self.weights.dot(prev_activation)+ np.tile(self.bias, (self.sample_size, 1)).transpose()
         func = getattr(self,self.funcname)
         self.activation = func(z)
+        self.pred = np.array(self.activation.argmax(axis = 0))
         self.culmulative_weights = self.prev.culmulative_weights + np.sum(self.weights ** 2)
+
+    def compute_gradient(self, delta):
+        w_gradient = delta.dot(self.prev.activation.transpose()) /  self.sample_size + self.lam * self.weights
+        b_gradient = np.sum(delta, axis = 1).transpose() / self.sample_size
+        next_delta = 0
+        if self.prev is not None:
+            next_delta = self.weights.transpose().dot(delta) * self.prev.derivative
+        return (np.concatenate((w_gradient.reshape(self.size * self.prev.size), b_gradient)), next_delta)
+
+    def cost(self, output, s_cost):
+        indicator = csr_matrix((np.ones(self.sample_size), (output, np.array(range(self.sample_size)))))
+        indicator = np.array(indicator.todense())
+        return (-1.0 / self.sample_size) * np.sum(indicator * np.log(self.activation)) + (self.lam / 2) * np.sum(self.weights * self.weights)
 
 class Regressor(NLayer):
 
