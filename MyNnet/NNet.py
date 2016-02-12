@@ -21,7 +21,7 @@ def softmax(x):
 def sign(x,y):
     return np.int64((x - y) == 0)
 
-class NNet:
+class NNet(object):
     def __init__(self, Layers, beta):
         self.Layers = [] # Layers is a list of dictionary
         self.beta = beta
@@ -59,7 +59,7 @@ class NNet:
             if l.sparsity_param > 0:
                 s_cost += self.beta* np.sum(kl_divergence(l.rho, l.rho_est))
         # Cost Function
-        cost = LastLayer.cost(self.output, s_cost)
+        cost = LastLayer.cost(self.output, s_cost, len(self.Layers) - 1)
         if debug:
             return cost
         grad = []
@@ -104,7 +104,7 @@ class NNet:
         if debug:
             self.gradient_check(data, theta)
         else:
-            options = {'maxiter': 200, 'disp': False}
+            options = {'maxiter': 200, 'disp': True}
             J = lambda x: self.forward_back(theta = x, debug = debug)
             result = minimize(J, theta, method='L-BFGS-B', jac=True, options=options)
             opt_theta = result.x
@@ -166,14 +166,17 @@ class NNet:
         return acc_cost
 
 
-class Sparse_AutoEncoder:
+class Sparse_AutoEncoder(NNet):
 
 
     def __init__(self, input_size, hidden_size, lam, sparsity_param, beta):
-        self.ae = NNet(Layers = [input_size ,hidden_size, input_size], func = sigmoid, lam = lam, beta = beta, sparsity_param= sparsity_param)
+        L = [{'type':'NLayer', 'params' : {"size": input_size, "ac_func":'sigmoid', "lam": lam,"sparsity_param":0}},
+             {'type':'NLayer', 'params' : {"size": hidden_size, "ac_func":'sigmoid', "lam": lam,"sparsity_param":sparsity_param}},
+             {'type':'NLayer', 'params' : {"size": input_size, "ac_func":'sigmoid', "lam": lam,"sparsity_param":0}}]
+        super(Sparse_AutoEncoder, self).__init__(L,beta)
 
     def train(self, data):
-        self.ae.train(data, data, debug = False)
+        super(Sparse_AutoEncoder, self).train(data, data,debug = False)
 
 
 

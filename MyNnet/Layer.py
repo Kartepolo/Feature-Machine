@@ -71,9 +71,9 @@ class NLayer(object):
             next_delta = self.weights.transpose().dot(delta) * self.prev.derivative
         return (np.concatenate((w_gradient.reshape(self.size * self.prev.size), b_gradient)), next_delta)
 
-    def cost(self, output, s_cost):
+    def cost(self, output, s_cost, num):
         return np.sum((self.activation - output) ** 2) / (2 * self.sample_size) \
-               + self.lam * self.culmulative_weights / (len(self.Layers) - 1) +s_cost
+               + self.lam * self.culmulative_weights / num +s_cost
 
 
 class Encoder(NLayer):

@@ -6,7 +6,7 @@
       <sourceFolder url="file://$MODULE_DIR$/Tuning-Optimizer" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/MyNnet" isTestSource="false" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 2.7.6 (/System/Library/Frameworks/Python.framework/Versions/2.7/bin/python2.7)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 2.7.11 (C:\Users\Xiang\Anaconda2\python.exe)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="ufldl_tutorial-master" />
   </component>
