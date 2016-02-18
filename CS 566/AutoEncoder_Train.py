@@ -77,7 +77,6 @@ class AutoEncoder(object):
 
 
         self.data = tf.placeholder(tf.float32, [None, layers[0]])
-        self.mask = tf.placeholder("float", [None, layers[0]], name='mask')
         self.keep_prob = tf.placeholder("float")
         self.noise = tf.placeholder("float", [None, layers[0]], name = "noise")
         self.create_network()
@@ -109,7 +108,7 @@ class AutoEncoder(object):
 
 
     def encoder_network(self):
-        self.output.append(self.mask * tf.add(self.data, self.noise))
+        self.output.append(tf.nn.dropout(tf.add(self.data, self.noise)), self.keep_prob)
         for l in xrange(len(self.layer_size) - 1):
             self.output.append(tf.nn.tanh(tf.matmul(self.output[l], self.weight[l])+ self.bias[l]))
 
@@ -118,15 +117,15 @@ class AutoEncoder(object):
         self.cost = reconstr_cost
         self.optimizer = tf.train.GradientDescentOptimizer(self.learning_rate).minimize(self.cost)
 
-    def partial_fit(self, data, prob, mask, noise):
+    def partial_fit(self, data, prob, noise):
         """Train model based on mini-batch of input data.
 
         Return cost of mini-batch.
         """
         opt, cost = self.sess.run((self.optimizer, self.cost),
-                                  feed_dict={self.data: data, self.keep_prob: prob, self.mask : mask, self.noise : noise})
+                                  feed_dict={self.data: data, self.keep_prob: prob, self.noise : noise})
         return cost
-    def train(self, data, prob, training_epochs = 10, display_step = 5):
+    def train(self, data, prob, training_epochs = 10, display_step = 5, display = True):
         self.num_samples = data.shape[0]
         prev = 1000000000
         for epoch in xrange(training_epochs):
@@ -138,21 +137,21 @@ class AutoEncoder(object):
                 else: upper = (i+1) * self.batch_size
                 sub = data[i * self.batch_size : upper , ]
                 mask_np = np.random.binomial(1, prob, sub.shape)
-                cost = self.partial_fit(sub, prob,mask_np, noise[i * self.batch_size : upper , ])
+                cost = self.partial_fit(sub, prob, noise[i * self.batch_size : upper , ])
                 avg_cost += cost / self.num_samples * self.batch_size
             if (prev - avg_cost) < 1e-4:
                 print (epoch + 1)
                 break
             else:
-                prev = avg_cost
-            if epoch % display_step == 0:
+                prev = avg
+            if epoch % display_step == 0 and display:
                 print ("Epoch:", "{:04d}".format(epoch + 1), "cost=", "{:.9f}".format(avg_cost))
 
-    def reconstruct(self, data, mask, noise):
+    def reconstruct(self, data, noise):
         self.output[0] = self.data
         zeron = np.zeros(data.shape)
-        return (self.sess.run(self.output[len(self.output) - 1], feed_dict = {self.data: data, self.keep_prob : 1.0,self.mask : mask, self.noise : noise}),
-                self.cost.eval(feed_dict = {self.data: data, self.keep_prob : 1.0, self.mask : mask, self.noise : zeron}))
+        return (self.sess.run(self.output[len(self.output) - 1], feed_dict = {self.data: data, self.keep_prob : 1.0, self.noise : noise}),
+                self.cost.eval(feed_dict = {self.data: data, self.keep_prob : 1.0,self.noise : zeron}))
     def visual_hidden(self, num):
         matrix = self.weight[num]
         #denominator = tf.sqrt(tf.reduce_sum(tf.square(matrix),0))
