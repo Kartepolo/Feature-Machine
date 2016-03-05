@@ -2,3 +2,9 @@
 CS 566/notMNIST_large/A.pickle
 
 *.pickle
+CS 566/notMNIST_large.tar.gz
+*.gz
+*.pyc
+*.xml
+.idea/misc.xml
+*.xml

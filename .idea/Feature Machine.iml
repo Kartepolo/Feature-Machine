@@ -5,11 +5,15 @@
       <sourceFolder url="file://$MODULE_DIR$" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/Tuning-Optimizer" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/MyNnet" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/CS 566/TensorFlow" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/CS 566/Theano_Class" isTestSource="false" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 2.7.6 (/System/Library/Frameworks/Python.framework/Versions/2.7/bin/python2.7)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 2.7.11 (C:\Users\Xiang\Anaconda2\python.exe)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="ufldl_tutorial-master" />
     <orderEntry type="module" module-name="GSCrawler" />
+    <orderEntry type="module" module-name="DeepLearningTutorials-master" />
+    <orderEntry type="module" module-name="BasicSpearmint-master" />
   </component>
   <component name="TestRunnerService">
     <option name="PROJECT_TEST_RUNNER" value="Unittests" />

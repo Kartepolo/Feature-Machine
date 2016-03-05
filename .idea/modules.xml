@@ -2,8 +2,9 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://C:/BasicSpearmint-master/.idea/BasicSpearmint-master.iml" filepath="C:/BasicSpearmint-master/.idea/BasicSpearmint-master.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../DeepLearningTutorials-master/.idea/DeepLearningTutorials-master.iml" filepath="$PROJECT_DIR$/../DeepLearningTutorials-master/.idea/DeepLearningTutorials-master.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/Feature Machine.iml" filepath="$PROJECT_DIR$/.idea/Feature Machine.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../GSCrawler/.idea/GSCrawler.iml" filepath="$PROJECT_DIR$/../GSCrawler/.idea/GSCrawler.iml" />
     </modules>
   </component>
 </project>

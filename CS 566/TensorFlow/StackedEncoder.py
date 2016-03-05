@@ -1,11 +1,13 @@
-from AutoEncoder_Train import AutoEncoder
+import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
+from AutoEncoder_Train import AutoEncoder
 from six.moves import cPickle as pickle
-import tensorflow as tf
 from sklearn.cross_validation import KFold
 from sklearn.utils import shuffle
-import matplotlib.cm as cm
+
+import tensorflow as tf
+
 
 class StackedEncoder(AutoEncoder):
     def __init__(self, lam, **kwargs):
